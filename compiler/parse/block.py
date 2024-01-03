@@ -1,5 +1,5 @@
-from scanner import Scanner, Token
-from astnode import AstNode
+from ..scanner import Scanner, Token
+from ..astnode import AstNode
 from .expression import expression
 from typing import List
 

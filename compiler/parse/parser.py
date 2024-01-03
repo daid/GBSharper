@@ -1,7 +1,7 @@
-from parse.function import parse_function
-from parse.variable import parse_var
-from scanner import Scanner
-from module import Module
+from .function import parse_function
+from .variable import parse_var
+from ..scanner import Scanner
+from ..module import Module
 
 
 def parse(module_name: str, code: str) -> Module:

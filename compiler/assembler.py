@@ -227,6 +227,52 @@ class Section:
         return f"Section {binascii.hexlify(self.data).decode('ascii')}"
 
 
+class SpaceAllocator:
+    def __init__(self):
+        self.__available = []
+        self.__next_free_bank = 0
+
+    def allocate_fixed(self, bank, start, length):
+        while bank >= self.__next_free_bank:
+            self.__new_bank()
+        end = start + length
+        for idx, (b, s, e) in enumerate(self.__available):
+            if b != bank:
+                continue
+            if s <= start and e >= end:
+                self.__available.pop(idx)
+                if s < start:
+                    self.__available.append((bank, s, start))
+                if e > end:
+                    self.__available.append((bank, end, e))
+                return
+        print(self.__available)
+        raise AssemblerException(None, f"Failed to allocate fixed region: {bank}:{start}-{end}... region overlaps?")
+
+    def allocate(self, length, bank=None):
+        if bank is not None:
+            while bank >= self.__next_free_bank:
+                self.__new_bank()
+        for idx, (b, s, e) in enumerate(self.__available):
+            if bank is not None and b != bank:
+                continue
+            if e - s >= length:
+                if e - s > length:
+                    self.__available[idx] = (b, s + length, e)
+                else:
+                    self.__available.pop(idx)
+                return b, s
+        self.__new_bank()
+        return self.allocate(length, bank)
+
+    def __new_bank(self):
+        if self.__next_free_bank == 0:
+            self.__available.append((self.__next_free_bank, 0x0000, 0x4000))
+        else:
+            self.__available.append((self.__next_free_bank, 0x4000, 0x8000))
+        self.__next_free_bank += 1
+
+
 class Assembler:
     SIMPLE_INSTR = {
         'NOP':  0x00,
@@ -423,6 +469,9 @@ class Assembler:
                     self.__tok.expect('NEWLINE')
                 elif start.value == 'JR':
                     self.instrJR()
+                    self.__tok.expect('NEWLINE')
+                elif start.value == 'JPR':
+                    self.instrJPR()
                     self.__tok.expect('NEWLINE')
                 elif start.value == 'PUSH':
                     self.instrPUSHPOP(0xC5)
@@ -799,6 +848,20 @@ class Assembler:
             self.__current_section.data.append(0xC3)
         self.insert16(param)
 
+    def instrJPR(self) -> None:
+        param = self.parseParam()
+        if self.__tok.peek().isA('OP', ','):
+            self.__tok.pop()
+            condition = param
+            param = self.parseParam()
+            if condition.isA('ID') and isinstance(condition, Token) and condition.value in FLAGS:
+                self.__current_section.data.append(0xC2 | FLAGS[str(condition.value)])
+            else:
+                raise AssemblerException(condition, "Syntax error")
+        else:
+            self.__current_section.data.append(0xC3)
+        self.insert16(param)
+
     def instrDW(self) -> None:
         param = self.parseExpression()
         self.insert16(param)
@@ -961,6 +1024,15 @@ class Assembler:
             value = int(result.value)
             if value == 0:
                 raise AssemblerException(token, f"Assertion failed")
+        sa = SpaceAllocator()
+        for section in self.__sections:
+            if section.base_address >= 0 and section.bank is not None:
+                sa.allocate_fixed(section.bank, section.base_address, len(section.data))
+        for section in self.__sections:
+            if section.base_address == -2:
+                b, a = sa.allocate(len(section.data), section.bank)
+                section.base_address = a
+                section.bank = b
         for section in self.__sections:
             inline_strings: Dict[bytes, int] = {}
             for offset, (link_type, link_expr) in section.link.items():

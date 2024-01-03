@@ -1,6 +1,6 @@
-from exception import CompileException
-from scanner import Scanner
-from astnode import AstNode
+from ..exception import CompileException
+from ..scanner import Scanner
+from ..astnode import AstNode
 from .expression import expression
 
 

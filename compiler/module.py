@@ -1,7 +1,7 @@
 from typing import List
 
-from astnode import AstNode
-from parse.function import Function
+from .astnode import AstNode
+from .parse.function import Function
 
 
 class Module:

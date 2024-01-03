@@ -1,7 +1,7 @@
-from scanner import Scanner
 from typing import Dict, Optional, Callable, Union, Tuple, List
-from astnode import AstNode
-from exception import CompileException
+from ..scanner import Scanner
+from ..astnode import AstNode
+from ..exception import CompileException
 
 
 PREC_NONE = 0

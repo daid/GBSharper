@@ -1,8 +1,8 @@
 from typing import List
 
-from astnode import AstNode
-from exception import CompileException
-from parse.function import Function
+from .astnode import AstNode
+from .exception import CompileException
+from .parse.function import Function
 
 OP_LOAD = 0
 OP_LOAD_VALUE = 1

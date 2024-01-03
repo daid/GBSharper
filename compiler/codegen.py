@@ -1,6 +1,6 @@
 from typing import Set
 
-from pseudo import *
+from .pseudo import *
 
 FLAG_ALU_RESULT = 1
 REG_TO_IDX = {"A": 7, "B": 0, "C": 1, "D": 2, "E": 3, "H": 4, "L": 5}
@@ -130,12 +130,12 @@ def gen_code(ps: PseudoState):
         elif op.kind == OP_LABEL:
             code.add(f"._{op.args[0]}:")
         elif op.kind == OP_JUMP:
-            code.add(f"jp ._{op.args[0]}")
+            code.add(f"jpr ._{op.args[0]}")
         elif op.kind == OP_JUMP_ZERO:
             r0 = ra.get(op.args[1])
             code.add(f"and {r0}, {r0}")
             ra.free(op.args[1])
-            code.add(f"jp z, ._{op.args[0]}")
+            code.add(f"jpr z, ._{op.args[0]}")
         else:
             raise RuntimeError(f"No codegen implementation for {op}")
     return code.code

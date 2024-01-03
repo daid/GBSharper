@@ -1,7 +1,7 @@
 from typing import List, Optional
-from astnode import AstNode
-from scanner import Scanner, Token
-from parse.block import parse_block
+from ..astnode import AstNode
+from ..scanner import Scanner, Token
+from .block import parse_block
 
 
 class Parameter:

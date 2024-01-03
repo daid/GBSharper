@@ -1,5 +1,5 @@
 from typing import Optional, Union
-from exception import CompileException
+from .exception import CompileException
 
 
 class Token:

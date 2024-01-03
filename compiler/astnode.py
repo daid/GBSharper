@@ -1,4 +1,4 @@
-from scanner import Token
+from .scanner import Token
 
 
 class AstNode:
