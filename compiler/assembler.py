@@ -10,6 +10,8 @@ REGS16A = {"BC": 0, "DE": 1, "HL": 2, "SP": 3}
 REGS16B = {"BC": 0, "DE": 1, "HL": 2, "AF": 3}
 FLAGS = {"NZ": 0x00, "Z": 0x08, "NC": 0x10, "C": 0x18}
 
+JP_TO_JR = {0xC3: 0x18, 0xC2: 0x20, 0xD2: 0x30, 0xCA: 0x28, 0xDA: 0x38}
+
 
 class ExprBase:
     def asReg8(self) -> Optional[int]:
@@ -218,6 +220,7 @@ class Section:
         self.bank = bank
         self.data = bytearray()
         self.link: Dict[int, Tuple[int, ExprBase]] = {}
+        self.jpr_list: List[int] = []
 
     def __repr__(self) -> str:
         if self.bank is not None:
@@ -852,6 +855,7 @@ class Assembler:
 
     def instrJPR(self) -> None:
         param = self.parseParam()
+        self.__current_section.jpr_list.append(len(self.__current_section.data) + 1)
         if self.__tok.peek().isA('OP', ','):
             self.__tok.pop()
             condition = param
@@ -1026,6 +1030,20 @@ class Assembler:
             value = int(result.value)
             if value == 0:
                 raise AssemblerException(token, f"Assertion failed")
+        for section in self.__sections:
+            for jpr_offset in sorted(section.jpr_list, reverse=True):
+                link_type, target = section.link[jpr_offset]
+                if target.kind == "ID" and target.value in self.__label:
+                    target_section, target_offset = self.__label[target.value]
+                    diff = target_offset - jpr_offset
+                    if target_section == section and -128 <= diff < 128:
+                        section.link[jpr_offset] = (self.LINK_REL8, target)
+                        section.data.pop(jpr_offset)
+                        section.data[jpr_offset-1] = JP_TO_JR[section.data[jpr_offset-1]]
+                        section.link = {o if o <= jpr_offset else o - 1: t for o, t in section.link.items()}
+                        for k, (s, o) in self.__label.items():
+                            if s == section and o > jpr_offset:
+                                self.__label[k] = (s, o - 1)
         sa = SpaceAllocator()
         for section in self.__sections:
             if 0 <= section.base_address < 0x8000 and section.bank is not None:
