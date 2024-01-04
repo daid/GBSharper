@@ -15,13 +15,14 @@ class CPU:
         self.flagH = False
         self.flagC = False
         self.ime = False
+        self.hard_halt = False  # Set when the CPU is crashed
 
         self.opcode = [None] * 0x100
         for n in range(0x100):
             if hasattr(self, f"instr{n:02X}"):
                 self.opcode[n] = getattr(self, f"instr{n:02X}")
-            #else:
-            #    print(f"Missing instruction: {n:02X}")
+            else:
+               print(f"Missing instruction: {n:02X}")
 
     def read(self, addr):
         raise NotImplementedError()
@@ -33,6 +34,8 @@ class CPU:
         pass
 
     def step(self):
+        if self.hard_halt:
+            return
         self.opcode[self.pc_read_inc()]()
 
     def pc_read_inc(self):
@@ -604,8 +607,13 @@ class CPU:
 
     def instrC3(self):
         self.PC = self.pc_read16_inc()
-    # instrD3
-    # instrE3
+
+    def instrD3(self):
+        self.hard_halt = True
+
+    def instrE3(self):
+        self.hard_halt = True
+
     def instrF3(self):
         self.ime = False
 
@@ -619,8 +627,10 @@ class CPU:
             self.instrCD()
         else:
             self.pc_read16_inc()
-    # instrE3
-    # instrF3
+    def instrE4(self):
+        self.hard_halt = True
+    def instrF4(self):
+        self.hard_halt = True
 
     def instrC5(self):
         self.push(self.BC)
@@ -757,8 +767,11 @@ class CPU:
         if op == 7:
             self.A = f(self.A)
 
-    # instrDB
-    # instrEB
+    def instrDB(self):
+        self.hard_halt = True
+    def instrEB(self):
+        self.hard_halt = True
+
     def instrFB(self):
         self.ime = True
 
@@ -772,14 +785,19 @@ class CPU:
             self.instrCD()
         else:
             self.pc_read16_inc()
-    # instrEC
-    # instrFC
+    def instrEC(self):
+        self.hard_halt = True
+    def instrFC(self):
+        self.hard_halt = True
 
     def instrCD(self):
         self.call(self.pc_read16_inc())
-    # instrDD
-    # instrED
-    # instrFD
+    def instrDD(self):
+        self.hard_halt = True
+    def instrED(self):
+        self.hard_halt = True
+    def instrFD(self):
+        self.hard_halt = True
 
     def instrCE(self):
         self.A = self.adc8(self.A, self.pc_read_inc())

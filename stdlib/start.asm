@@ -1,4 +1,5 @@
 std_start:
+    call __init
     call _main
     di
     halt

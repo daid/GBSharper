@@ -1,4 +1,5 @@
 from typing import Dict
+import os
 
 from .assembler import Assembler
 from .astnode import AstNode
@@ -15,8 +16,11 @@ class Compiler:
         self.vars: Dict[str, AstNode] = {}
         self.funcs: Dict[str, Function] = {}
 
-    def add_file(self, filename):
-        module = parse(filename, open(filename, "rt").read())
+    def add_file(self, filename: str):
+        self.add_module(filename, open(filename, "rt").read())
+
+    def add_module(self, name: str, code: str):
+        module = parse(name, code)
         for const in module.consts:
             if const.token.value in self.consts:
                 raise CompileException(const.token, "Duplicate const definition")
@@ -31,29 +35,40 @@ class Compiler:
             self.funcs[func.token.value] = func
 
     def build(self):
-        code = ""
+        asm = Assembler()
+        asm.process("jp std_start\nds $150-3", base_address=0x0100, bank=0) # Reserve header area
+        for f in os.listdir("stdlib"):
+            fp = open(f"stdlib/{f}", "rt")
+            asm.process(fp.read(), base_address=-2, bank=0)
+            fp.close()
+        ram_code = ""
+        init_code = "__init:\n"
+        for name, var in self.vars.items():
+            ram_code += f"_{name}:\n ds 1\n"
+            init_code += f"ld a, {var.params[0].token.value}\nld [_{name}], a\n"
+        asm.process(ram_code, base_address=0xC000, bank=0)
+        asm.process(init_code + "ret", base_address=-2, bank=1)
         for name, func in self.funcs.items():
             ps = PseudoState(func)
-            code += f"_{func.name}:\n"
+            code = f"_{func.name}:\n"
             code += gen_code(ps)
             code += "ret\n"
-        asm = Assembler()
-        asm.addConstant("_X", 0xC000)
-        asm.addConstant("_Y", 0xC001)
-        asm.process("jp std_start\nds $150-3", base_address=0x0100, bank=0) # Reserve header area
-        asm.process(open("stdlib/start.asm", "rt").read(), base_address=-2, bank=0)
-        asm.process(open("stdlib/logic.asm", "rt").read(), base_address=-2, bank=0)
-        asm.process(code, base_address=-2)
+            asm.process(code, base_address=-2)
         asm.link()
 
         rom_data = bytearray(0x10000)
         for s in asm.getSections():
+            if s.base_address >= 0x8000:
+                assert s.data.count(0) == len(s.data)
+                continue
             while s.bank * 0x4000 >= len(rom_data):
                 rom_data += bytearray(0x4000)
             start = s.bank * 0x4000 + (s.base_address & 0x3FFF)
             rom_data[start:start+len(s.data)] = s.data
-        for label, addr, bank in asm.getLabels():
-            print(f"{bank:02x}:{addr:04x} {label}")
+
+        # for label, addr, bank in asm.getLabels():
+        #     print(f"{bank:02x}:{addr:04x} {label}")
+
         # Fix the header
         rom_data[0x0104:0x0134] = b'\xCE\xED\x66\x66\xCC\x0D\x00\x0B\x03\x73\x00\x83\x00\x0C\x00\x0D\x00\x08\x11\x1F\x88\x89\x00\x0E\xDC\xCC\x6E\xE6\xDD\xDD\xD9\x99\xBB\xBB\x67\x63\x6E\x0E\xEC\xCC\xDD\xDC\x99\x9F\xBB\xB9\x33\x3E'
         rom_data[0x0143] = 0 # GBC flag
@@ -67,4 +82,4 @@ class Compiler:
         checksum = sum(rom_data)
         rom_data[0x14E] = (checksum >> 8) & 0xFF
         rom_data[0x14F] = checksum & 0xFF
-        return rom_data
+        return rom_data, {l: (a, b) for l, a, b in asm.getLabels()}

@@ -247,9 +247,9 @@ class SpaceAllocator:
                     self.__available.append((bank, end, e))
                 return
         print(self.__available)
-        raise AssemblerException(None, f"Failed to allocate fixed region: {bank}:{start}-{end}... region overlaps?")
+        raise AssemblerException(None, f"Failed to allocate fixed region: {bank:02x}:{start:04x}-{end:04x}... region overlaps?")
 
-    def allocate(self, length, bank=None):
+    def allocate(self, length, bank=None, *, allow_new_bank=True):
         if bank is not None:
             while bank >= self.__next_free_bank:
                 self.__new_bank()
@@ -262,8 +262,10 @@ class SpaceAllocator:
                 else:
                     self.__available.pop(idx)
                 return b, s
+        if not allow_new_bank:
+            raise AssemblerException(None, f"Failed to allocate region: {length:04x}... region too big?")
         self.__new_bank()
-        return self.allocate(length, bank)
+        return self.allocate(length, bank, allow_new_bank=False)
 
     def __new_bank(self):
         if self.__next_free_bank == 0:
@@ -1026,7 +1028,7 @@ class Assembler:
                 raise AssemblerException(token, f"Assertion failed")
         sa = SpaceAllocator()
         for section in self.__sections:
-            if section.base_address >= 0 and section.bank is not None:
+            if 0 <= section.base_address < 0x8000 and section.bank is not None:
                 sa.allocate_fixed(section.bank, section.base_address, len(section.data))
         for section in self.__sections:
             if section.base_address == -2:

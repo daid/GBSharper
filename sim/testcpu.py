@@ -1,4 +1,4 @@
-from cpu import CPU
+from .cpu import CPU
 
 
 class TestCPU(CPU):
