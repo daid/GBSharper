@@ -74,12 +74,14 @@ class PseudoState:
             self.ops.append(PseudoOp(OP_JUMP_ZERO, if_label, r1))
             self.free_reg(r1)
             self.block(node.params[1].params)
-            self.ops.append(PseudoOp(OP_LABEL, if_label))
             if len(node.params) > 2:
                 end_label = self.next_label()
                 self.ops.append(PseudoOp(OP_JUMP, end_label))
+                self.ops.append(PseudoOp(OP_LABEL, if_label))
                 self.block(node.params[2].params)
                 self.ops.append(PseudoOp(OP_LABEL, end_label))
+            else:
+                self.ops.append(PseudoOp(OP_LABEL, if_label))
         else:
             raise CompileException(node.token, f"Do not know how to convert {node} into pseudo ops")
         return r0
