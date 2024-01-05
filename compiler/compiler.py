@@ -34,7 +34,11 @@ class Compiler:
                 raise CompileException(func.token, "Duplicate const definition")
             self.funcs[func.token.value] = func
 
-    def build(self):
+    def dump_ast(self):
+        for func in self.funcs.values():
+            func.dump()
+
+    def build(self, *, print_asm_code=False):
         asm = Assembler()
         asm.process("jp std_start\nds $150-3", base_address=0x0100, bank=0) # Reserve header area
         for f in os.listdir("stdlib"):
@@ -53,6 +57,8 @@ class Compiler:
             code = f"_{func.name}:\n"
             code += gen_code(ps)
             code += "ret\n"
+            if print_asm_code:
+                print(code)
             asm.process(code, base_address=-2)
         asm.link()
 

@@ -49,7 +49,7 @@ def grouping(scanner: Scanner) -> AstNode:
 def unary(scanner: Scanner) -> AstNode:
     scanner.advance()
     t = scanner.previous
-    return AstNode(t.kind, t, parse_precedence(scanner, PREC_UNARY))
+    return AstNode(f"U{t.kind}", t, parse_precedence(scanner, PREC_UNARY))
 
 
 def index(scanner: Scanner) -> Tuple[str, AstNode]:

@@ -12,7 +12,9 @@ OP_LOGIC = 4
 OP_LABEL = 5
 OP_JUMP = 6
 OP_JUMP_ZERO = 7
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO"]
+OP_COMPLEMENT = 8
+OP_SHIFT = 9
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT"]
 
 
 class PseudoOp:
@@ -52,15 +54,23 @@ class PseudoState:
             r1 = self.step(node.params[1])
             self.ops.append(PseudoOp(OP_STORE, r1, node.params[0].token.value))
             self.free_reg(r1)
-        elif node.kind in {'+', '-', '*', '/', '%'}:
-            r1 = self.step(node.params[1])
+        elif node.kind in {'U-'}:
             r0 = self.step(node.params[0])
+            self.ops.append(PseudoOp(OP_COMPLEMENT, r0))
+        elif node.kind in {'+', '-', '*', '/', '%'}:
+            r0 = self.step(node.params[0])
+            r1 = self.step(node.params[1])
             self.ops.append(PseudoOp(OP_ARITHMETIC, node.kind, r0, r1))
             self.free_reg(r1)
         elif node.kind in {'<', '>', '==', '!='}:
-            r1 = self.step(node.params[1])
             r0 = self.step(node.params[0])
+            r1 = self.step(node.params[1])
             self.ops.append(PseudoOp(OP_LOGIC, node.kind, r0, r1))
+            self.free_reg(r1)
+        elif node.kind == 'SHIFT':
+            r0 = self.step(node.params[0])
+            r1 = self.step(node.params[1])
+            self.ops.append(PseudoOp(OP_SHIFT, node.token.value, r0, r1))
             self.free_reg(r1)
         elif node.kind == 'ID':
             r0 = self.new_reg()

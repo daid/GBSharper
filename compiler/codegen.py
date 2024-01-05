@@ -81,7 +81,7 @@ def gen_code(ps: PseudoState):
     for op in ps.ops:
         if op.kind in {OP_ARITHMETIC, OP_LOGIC, OP_JUMP_ZERO}:
             ra.set_alu_result(op.args[1])
-        if op.kind in {OP_LOAD}:
+        if op.kind in {OP_LOAD, OP_STORE}:
             ra.set_alu_result(op.args[0])
     for op in ps.ops:
         code.add(f"; {op}")
@@ -127,6 +127,22 @@ def gen_code(ps: PseudoState):
             else:
                 raise RuntimeError(f"No codegen implementation for {op}")
             ra.free(op.args[2])
+        elif op.kind == OP_COMPLEMENT:
+            r0 = ra.get(op.args[0])
+            if r0 != 'A':
+                r0 = ra.move_reg(r0, "A")
+            assert r0 == 'A'
+            code.add(f"cpl")
+        elif op.kind == OP_SHIFT:
+            r0 = ra.get(op.args[1])
+            r1 = ra.get(op.args[2])
+            if op.args[0] == "<<":
+                code.add(f"sla {r0}")
+            elif op.args[0] == ">>":
+                code.add(f"srl {r0}")
+            else:
+                raise RuntimeError(f"No codegen implementation for {op}")
+            raise RuntimeError(f"No codegen implementation for {op}")
         elif op.kind == OP_LABEL:
             code.add(f"._{op.args[0]}:")
         elif op.kind == OP_JUMP:

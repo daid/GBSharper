@@ -36,6 +36,18 @@ fn main
 """)
         self.assertEqual(res.z, 20)
 
+    def test_greater(self):
+        res = compile_and_run("""
+var x = 11
+var y = 10
+var z = 0
+
+fn main
+    if x > y
+        z = 20
+""")
+        self.assertEqual(res.z, 20)
+
     def test_not_else(self):
         res = compile_and_run("""
 var x = 5

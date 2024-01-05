@@ -4,7 +4,8 @@ from compiler.compiler import Compiler
 def main(filename):
     c = Compiler()
     c.add_file(filename)
-    rom, symbols = c.build()
+    c.dump_ast()
+    rom, symbols = c.build(print_asm_code=True)
     open("rom.gb", "wb").write(rom)
 
 
