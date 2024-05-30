@@ -1,4 +1,4 @@
-var a: u8 = 6
+var a: u8 = 6 + 4
 var b = 2
 var c = 6
 var d = 2
@@ -8,4 +8,5 @@ fn main
     test(1, 2)
 
 fn test x y
-    d = x + y
+    d = x + -y
+    c = x + (2 * 3)

@@ -8,6 +8,7 @@ from .exception import CompileException
 from .parse.parser import parse
 from .pseudo import PseudoState
 from .scope import Scope
+from .optimizer.constant import constant_collapse
 
 
 class Compiler:
@@ -21,16 +22,24 @@ class Compiler:
     def add_module(self, name: str, code: str):
         module = parse(name, code)
         for const in module.consts:
+            constant_collapse(const.params[0])
             if const.token.value in self.consts:
-                raise CompileException(const.token, "Duplicate const definition")
+                raise CompileException(const.token, f"Duplicate const definition: {const.token.value}")
+            if const.params[0].kind != "NUM":
+                raise CompileException(const.token, f"Const initialization is not a constant value: {const.token.value}")
             self.consts[const.token.value] = const
         for var in module.vars:
             if var.token.value in self.consts:
-                raise CompileException(var.token, "Duplicate variable definition")
+                raise CompileException(var.token, f"Duplicate variable definition: {var.token.value}")
+            constant_collapse(var.params[0])
+            if var.params[0].kind != "NUM":
+                raise CompileException(var.token, f"Variable initialization is not a constant value: {var.token.value}")
             self.main_scope.vars[var.token.value] = var
         for func in module.funcs:
-            if func.token.value in self.consts:
-                raise CompileException(func.token, "Duplicate function definition")
+            if func.token.value in self.main_scope.funcs:
+                raise CompileException(func.token, f"Duplicate function definition: {func.name}")
+            for block in func.block:
+                constant_collapse(block)
             self.main_scope.funcs[func.token.value] = func
 
     def dump_ast(self):
