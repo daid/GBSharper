@@ -3,18 +3,17 @@ import os
 
 from .assembler import Assembler
 from .astnode import AstNode
-from .codegen import gen_code
+from .codegen.generator import gen_code
 from .exception import CompileException
-from .parse.function import Function
 from .parse.parser import parse
 from .pseudo import PseudoState
+from .scope import Scope
 
 
 class Compiler:
     def __init__(self):
         self.consts: Dict[str, AstNode] = {}
-        self.vars: Dict[str, AstNode] = {}
-        self.funcs: Dict[str, Function] = {}
+        self.main_scope = Scope("global_var")
 
     def add_file(self, filename: str):
         self.add_module(filename, open(filename, "rt").read())
@@ -27,15 +26,15 @@ class Compiler:
             self.consts[const.token.value] = const
         for var in module.vars:
             if var.token.value in self.consts:
-                raise CompileException(var.token, "Duplicate const definition")
-            self.vars[var.token.value] = var
+                raise CompileException(var.token, "Duplicate variable definition")
+            self.main_scope.vars[var.token.value] = var
         for func in module.funcs:
             if func.token.value in self.consts:
-                raise CompileException(func.token, "Duplicate const definition")
-            self.funcs[func.token.value] = func
+                raise CompileException(func.token, "Duplicate function definition")
+            self.main_scope.funcs[func.token.value] = func
 
     def dump_ast(self):
-        for func in self.funcs.values():
+        for func in self.main_scope.funcs.values():
             func.dump()
 
     def build(self, *, print_asm_code=False):
@@ -47,14 +46,21 @@ class Compiler:
             fp.close()
         ram_code = ""
         init_code = "__init:\n"
-        for name, var in self.vars.items():
-            ram_code += f"_{name}:\n ds 1\n"
-            init_code += f"ld a, {var.params[0].token.value}\nld [_{name}], a\n"
+        for name, var in self.main_scope.vars.items():
+            ram_code += f"_{self.main_scope.prefix}_{name}:\n ds {var.data_type.size//8}\n"
+            init_code += f"ld a, {var.params[0].token.value}\nld [_{self.main_scope.prefix}_{name}], a\n"
+        # TODO: Figure out call tree and overlap function parameters where possible.
+        for name, func in self.main_scope.funcs.items():
+            for param in func.parameters:
+                ram_code += f"_local_{func.name}_{param.name}:\n ds {param.vartype.size//8}\n"
         asm.process(ram_code, base_address=0xC000, bank=0)
         asm.process(init_code + "ret", base_address=-2, bank=1)
-        for name, func in self.funcs.items():
-            ps = PseudoState(func)
-            code = f"_{func.name}:\n"
+        for name, func in self.main_scope.funcs.items():
+            scope = Scope(f"local_{name}", self.main_scope)
+            for param in func.parameters:
+                scope.vars[param.name] = param.vartype
+            ps = PseudoState(scope, func)
+            code = f"_function_{func.name}:\n"
             code += gen_code(ps)
             code += "ret\n"
             if print_asm_code:

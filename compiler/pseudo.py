@@ -3,6 +3,7 @@ from typing import List
 from .astnode import AstNode
 from .exception import CompileException
 from .parse.function import Function
+from .scope import Scope
 
 OP_LOAD = 0
 OP_LOAD_VALUE = 1
@@ -14,7 +15,8 @@ OP_JUMP = 6
 OP_JUMP_ZERO = 7
 OP_COMPLEMENT = 8
 OP_SHIFT = 9
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT"]
+OP_CALL = 10
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL"]
 
 
 class PseudoOp:
@@ -27,11 +29,13 @@ class PseudoOp:
 
 
 class PseudoState:
-    def __init__(self, func: Function):
+    def __init__(self, scope: Scope, func: Function):
         self.ops: List[PseudoOp] = []
         self._reg_count = 0
         self._free_regs = []
         self._label_nr = 0
+        self._func = func
+        self._scope = scope
         self.block(func.block)
         assert len(self._free_regs) == self._reg_count
 
@@ -52,7 +56,7 @@ class PseudoState:
         r0 = -1
         if node.kind == '=':
             r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_STORE, r1, node.params[0].token.value))
+            self.ops.append(PseudoOp(OP_STORE, r1, self._scope.resolve_var_name(node.params[0])))
             self.free_reg(r1)
         elif node.kind in {'U-'}:
             r0 = self.step(node.params[0])
@@ -74,7 +78,7 @@ class PseudoState:
             self.free_reg(r1)
         elif node.kind == 'ID':
             r0 = self.new_reg()
-            self.ops.append(PseudoOp(OP_LOAD, r0, node.token.value))
+            self.ops.append(PseudoOp(OP_LOAD, r0, self._scope.resolve_var_name(node)))
         elif node.kind == 'NUM':
             r0 = self.new_reg()
             self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value))
@@ -92,6 +96,15 @@ class PseudoState:
                 self.ops.append(PseudoOp(OP_LABEL, end_label))
             else:
                 self.ops.append(PseudoOp(OP_LABEL, if_label))
+        elif node.kind == 'CALL':
+            func = self._scope.find_function(node.params[0])
+            if len(func.parameters) != len(node.params) - 1:
+                raise CompileException(node.token, f"Wrong number of parameters to function {func.name}")
+            for param_node, param in zip(node.params[1:], func.parameters):
+                r1 = self.step(param_node)
+                self.ops.append(PseudoOp(OP_STORE, r1, f"local_{func.name}_{param.name}"))
+                self.free_reg(r1)
+            self.ops.append(PseudoOp(OP_CALL, func.name))
         else:
             raise CompileException(node.token, f"Do not know how to convert {node} into pseudo ops")
         return r0

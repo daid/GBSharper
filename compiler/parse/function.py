@@ -2,6 +2,7 @@ from typing import List, Optional
 from ..astnode import AstNode
 from ..scanner import Scanner, Token
 from .block import parse_block
+from ..datatype import DEFAULT_TYPE
 
 
 class Parameter:
@@ -23,7 +24,7 @@ class Function(AstNode):
         self.__typename = ""
 
     def dump(self, indent: str = "", last: bool = True) -> None:
-        print(f"{indent}{'`' if last else '|'}-:{self.kind} {self.token}")
+        print(f"{indent}{'`' if last else '|'}-:{self.kind} {self.token} {self.parameters}")
         indent += "  " if last else "| "
         for idx, block in enumerate(self.block):
             block.dump(indent, idx == len(self.block) - 1)
@@ -32,6 +33,9 @@ class Function(AstNode):
 def parse_function(scanner: Scanner):
     scanner.consume('ID')
     function = Function(scanner.previous)
-    # TODO params, return value
+    while scanner.check("ID"):
+        var_name = scanner.previous.value
+        function.parameters.append(Parameter(var_name, DEFAULT_TYPE))
+    # TODO return value
     function.block = parse_block(scanner)
     return function

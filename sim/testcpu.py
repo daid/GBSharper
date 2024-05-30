@@ -1,7 +1,7 @@
 from .cpu import CPU
 
 
-class TestCPU(CPU):
+class MinimalCPU(CPU):
     def __init__(self, rom):
         super().__init__()
         self.rom = rom
@@ -13,6 +13,7 @@ class TestCPU(CPU):
         self.rombank = 1
         self.VBK = False
         self.PC = 0x100
+        self.SP = 0xE000
 
     def read(self, addr):
         if addr < 0x4000:

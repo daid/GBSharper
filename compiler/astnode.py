@@ -2,12 +2,13 @@ from .scanner import Token
 
 
 class AstNode:
-    __slots__ = ("kind", "token", "params")
+    __slots__ = ("kind", "token", "params", "data_type")
 
-    def __init__(self, kind: str, token: Token, *params: "AstNode"):
+    def __init__(self, kind: str, token: Token, *params: "AstNode", data_type=None):
         self.kind = kind
         self.token = token
         self.params = params
+        self.data_type = data_type
 
     def dump(self, indent: str = "", last: bool = True) -> None:
         print(f"{indent}{'`' if last else '|'}-:{self.kind} {self.token}")

@@ -1,7 +1,11 @@
-var a = 6
+var a: u8 = 6
 var b = 2
 var c = 6
 var d = 2
 
 fn main
     a = a - b - c - d
+    test(1, 2)
+
+fn test x y
+    d = x + y
