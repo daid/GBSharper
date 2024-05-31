@@ -10,6 +10,7 @@ class Module:
         self.vars: List[AstNode] = []
         self.consts: List[AstNode] = []
         self.funcs: List[Function] = []
+        self.regs: List[AstNode] = []
 
     def dump(self):
         print(f"Module: {self.name}")

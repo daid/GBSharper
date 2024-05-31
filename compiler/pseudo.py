@@ -69,7 +69,7 @@ class PseudoState:
         elif node.kind in {'<', '>', '==', '!='}:
             r0 = self.step(node.params[0])
             r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_LOGIC, node.kind, r0, r1))
+            self.ops.append(PseudoOp(OP_LOGIC, node.token.value, r0, r1))
             self.free_reg(r1)
         elif node.kind == 'SHIFT':
             r0 = self.step(node.params[0])

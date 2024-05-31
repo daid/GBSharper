@@ -12,6 +12,8 @@ def parse(module_name: str, code: str) -> Module:
             module.vars.append(parse_var(scanner))
         elif scanner.check('ID', 'const'):
             module.consts.append(parse_var(scanner))
+        elif scanner.check('ID', 'reg'):
+            module.regs.append(parse_var(scanner))
         elif scanner.check('ID', 'fn'):
             module.funcs.append(parse_function(scanner))
 

@@ -15,7 +15,11 @@ def op_handler(code: Code, ra: RegisterAllocator, op):
 
 @handler(8, OP_LOAD_VALUE)
 def op_handler(code: Code, ra: RegisterAllocator, op):
-    code.add(f"ld {ra.alloc(op.args[0])}, {op.args[1]}")
+    r0 = ra.alloc(op.args[0])
+    if r0 == "A" and (op.args[1]&0xFF) == 0:
+        code.add(f"xor {r0}")
+    else:
+        code.add(f"ld {r0}, {op.args[1]&0xFF}")
     return True
 
 
@@ -78,9 +82,9 @@ def op_arithmetic_constant(code: Code, ra: RegisterAllocator, load, arithmetic):
     if r0 != 'A':
         r0 = ra.move_reg(r0, "A")
     if arithmetic.args[0] == '+':
-        code.add(f"add {r0}, {load.args[1]}")
+        code.add(f"add {r0}, {load.args[1]&0xFF}")
     elif arithmetic.args[0] == '-':
-        code.add(f"sub {r0}, {load.args[1]}")
+        code.add(f"sub {r0}, {load.args[1]&0xFF}")
     else:
         raise RuntimeError(f"No codegen implementation for {arithmetic}")
     return True

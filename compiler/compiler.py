@@ -7,14 +7,14 @@ from .codegen.generator import gen_code
 from .exception import CompileException
 from .parse.parser import parse
 from .pseudo import PseudoState
-from .scope import Scope
+from .scope import Scope, TopLevelScope
 from .optimizer.constant import constant_collapse
 
 
 class Compiler:
     def __init__(self):
-        self.consts: Dict[str, AstNode] = {}
-        self.main_scope = Scope("global_var")
+        self.consts: Dict[str, int] = {}
+        self.main_scope = TopLevelScope("global_var")
 
     def add_file(self, filename: str):
         self.add_module(filename, open(filename, "rt").read())
@@ -27,9 +27,16 @@ class Compiler:
                 raise CompileException(const.token, f"Duplicate const definition: {const.token.value}")
             if const.params[0].kind != "NUM":
                 raise CompileException(const.token, f"Const initialization is not a constant value: {const.token.value}")
-            self.consts[const.token.value] = const
+            self.consts[const.token.value] = const.params[0].token.value
+        for reg in module.regs:
+            constant_collapse(reg.params[0])
+            if reg.token.value in self.main_scope.regs or reg.token.value in self.consts:
+                raise CompileException(reg.token, f"Duplicate reg definition: {reg.token.value}")
+            if reg.params[0].kind != "NUM":
+                raise CompileException(reg.token, f"Reg address is not a constant value: {reg.token.value}")
+            self.main_scope.regs[reg.token.value] = reg.params[0].token.value
         for var in module.vars:
-            if var.token.value in self.consts:
+            if var.token.value in self.main_scope.vars or var.token.value in self.main_scope.regs or var.token.value in self.consts:
                 raise CompileException(var.token, f"Duplicate variable definition: {var.token.value}")
             constant_collapse(var.params[0])
             if var.params[0].kind != "NUM":
@@ -55,6 +62,8 @@ class Compiler:
             fp.close()
         ram_code = ""
         init_code = "__init:\n"
+        for name, reg in self.main_scope.regs.items():
+            ram_code += f"_{name} := {reg}\n"
         for name, var in self.main_scope.vars.items():
             ram_code += f"_{self.main_scope.prefix}_{name}:\n ds {var.data_type.size//8}\n"
             init_code += f"ld a, {var.params[0].token.value}\nld [_{self.main_scope.prefix}_{name}], a\n"
