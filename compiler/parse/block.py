@@ -19,6 +19,8 @@ def parse_block(scanner: Scanner, minimal_indent: int = 1) -> List[AstNode]:
                 result.append(AstNode("RETURN", token))
             else:
                 result.append(AstNode("RETURN", token, expression(scanner)))
+        elif scanner.check('ID', 'pass'):
+            token = scanner.previous
         elif scanner.check('ID', 'if'):
             if_token = scanner.previous
             condition = expression(scanner)

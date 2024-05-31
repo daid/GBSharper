@@ -10,4 +10,8 @@ def main(filename):
 
 
 if __name__ == "__main__":
-    main("code.sharp")
+    import sys
+    if len(sys.argv) > 1:
+        main(sys.argv[1])
+    else:
+        main("code.sharp")

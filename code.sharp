@@ -9,4 +9,4 @@ fn main
 
 fn test x y
     d = x + -y
-    c = x + (2 * 3)
+    c = x + (2 << 3)

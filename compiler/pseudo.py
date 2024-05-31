@@ -96,6 +96,16 @@ class PseudoState:
                 self.ops.append(PseudoOp(OP_LABEL, end_label))
             else:
                 self.ops.append(PseudoOp(OP_LABEL, if_label))
+        elif node.kind == 'WHILE':
+            check_label = self.next_label()
+            end_label = self.next_label()
+            self.ops.append(PseudoOp(OP_LABEL, check_label))
+            r1 = self.step(node.params[0])
+            self.ops.append(PseudoOp(OP_JUMP_ZERO, end_label, r1))
+            self.free_reg(r1)
+            self.block(node.params[1:])
+            self.ops.append(PseudoOp(OP_JUMP, check_label))
+            self.ops.append(PseudoOp(OP_LABEL, end_label))
         elif node.kind == 'CALL':
             func = self._scope.find_function(node.params[0])
             if len(func.parameters) != len(node.params) - 1:
