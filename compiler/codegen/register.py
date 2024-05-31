@@ -37,6 +37,12 @@ class RegisterAllocator:
         self._free_regs.remove(pick)
         return pick
 
+    def is_free(self, *regs):
+        for reg in regs:
+            if reg not in self._free_regs:
+                return False
+        return True
+
     def free(self, nr):
         reg = self._alloc[nr]
         self._reg_is.pop(reg)
@@ -51,6 +57,12 @@ class RegisterAllocator:
             self._move_reg(to_reg, self._pick_best_reg(self._free_regs))
         self._move_reg(from_reg, to_reg)
         return to_reg
+
+    def reg_replaced_by(self, source, target):
+        self.free(source)
+        self._alloc[source] = self._alloc[target]
+        self._alloc.pop(target)
+        self._reg_is[target] = self._alloc[source]
 
     def _move_reg(self, from_reg, to_reg):
         self._code.add(f"ld {to_reg}, {from_reg}")
