@@ -1,5 +1,6 @@
 ; https://raw.githubusercontent.com/gbdev/gb-asm-tutorial/master/unbricked/bricks/main.asm
 ; INCLUDE "hardware.inc"
+reg rP1 = 0xFF00
 reg rLCDC = 0xFF40
 reg rLY = 0xFF44
 reg rBGP = 0xFF47
@@ -173,38 +174,15 @@ fn main
                     ballMomentumY = -1
 
         ; Check the current keys every frame and move left or right.
-        Input()
+        input()
 
-    ;    ; First, check if the left button is pressed.
-    ;CheckLeft:
-    ;    ld a, [wCurKeys]
-    ;    and a, PADF_LEFT
-    ;    jp z, CheckRight
-    ;Left:
-    ;    ; Move the paddle one pixel to the left.
-    ;    ld a, [_OAMRAM + 1]
-    ;    dec a
-    ;    ; If we've already hit the edge of the playfield, don't move.
-    ;    cp a, 15
-    ;    jp z, Main
-    ;    ld [_OAMRAM + 1], a
-    ;    jp Main
+        if curKeys & 0x20
+            if _OAMRAM1 != 15
+                _OAMRAM1 = _OAMRAM1 - 1
+        if curKeys & 0x10
+            if _OAMRAM1 != 105
+                _OAMRAM1 = _OAMRAM1 + 1
 
-;; Then check the right button.
-;CheckRight:
-;    ld a, [wCurKeys]
-;    and a, PADF_RIGHT
-;    jp z, Main
-;Right:
-;    ; Move the paddle one pixel to the right.
-;    ld a, [_OAMRAM + 1]
-;    inc a
-;    ; If we've already hit the edge of the playfield, don't move.
-;    cp a, 105
-;    jp z, Main
-;    ld [_OAMRAM + 1], a
-;    jp Main
-;
 ;; Convert a pixel position to a tilemap address
 ;; hl = $9800 + X + Y * 32
 ;; @param b: X
@@ -234,24 +212,13 @@ fn main
 ;    ld bc, $9800
 ;    add hl, bc
 ;    ret
-;
+
 ;; @param a: tile ID
 ;; @return z: set if a is a wall.
-;IsWallTile:
-;    cp a, $00
-;    ret z
-;    cp a, $01
-;    ret z
-;    cp a, $02
-;    ret z
-;    cp a, $04
-;    ret z
-;    cp a, $05
-;    ret z
-;    cp a, $06
-;    ret z
-;    cp a, $07
-;    ret
+fn isWallTile tile > u8
+    if tile < 8
+        return 1
+    return 0
 
 ;; ANCHOR: check-for-brick
 ;; Checks if a brick was collided with and breaks it if possible.
@@ -274,53 +241,10 @@ fn main
 ;    ret
 ;; ANCHOR_END: check-for-brick
 
-fn Input
-    pass
-;  ; Poll half the controller
-;  ld a, P1F_GET_BTN
-;  call .onenibble
-;  ld b, a ; B7-4 = 1; B3-0 = unpressed buttons
-
-;  ; Poll the other half
-;  ld a, P1F_GET_DPAD
-;  call .onenibble
-;  swap a ; A3-0 = unpressed directions; A7-4 = 1
-;  xor a, b ; A = pressed buttons + directions
-;  ld b, a ; B = pressed buttons + directions
-
-;  ; And release the controller
-;  ld a, P1F_GET_NONE
-;  ldh [rP1], a
-
-;  ; Combine with previous wCurKeys to make wNewKeys
-;  ld a, [wCurKeys]
-;  xor a, b ; A = keys that changed state
-;  and a, b ; A = keys that changed to pressed
-;  ld [wNewKeys], a
-;  ld a, b
-;  ld [wCurKeys], a
-;  ret
-
-;.onenibble
-;  ldh [rP1], a ; switch the key matrix
-;  call .knownret ; burn 10 cycles calling a known ret
-;  ldh a, [rP1] ; ignore value while waiting for the key matrix to settle
-;  ldh a, [rP1]
-;  ldh a, [rP1] ; this read counts
-;  or a, $F0 ; A7-4 = 1; A3-0 = unpressed keys
-;.knownret
-;  ret
-
-;; Copy bytes from one area to another.
-;; @param de: Source
-;; @param hl: Destination
-;; @param bc: Length
-;Memcopy:
-;    ld a, [de]
-;    ld [hli], a
-;    inc de
-;    dec bc
-;    ld a, b
-;    or a, c
-;    jp nz, Memcopy
-;    ret
+fn input
+    rP1 = 0x10
+    var keys = rP1 | 0xF0
+    rP1 = 0x20
+    keys = -(keys & ((rP1 << 4) | 0x0F))
+    newKeys = (curKeys ^ keys) & keys
+    curKeys = keys

@@ -1,6 +1,7 @@
 from ..scanner import Scanner, Token
 from ..astnode import AstNode
 from .expression import expression
+from .variable import parse_var
 from typing import List
 
 
@@ -11,9 +12,9 @@ def parse_block(scanner: Scanner, minimal_indent: int = 1) -> List[AstNode]:
     if indent_level < minimal_indent:
         scanner.error("Expected indent block")
     while True:
-        # if scanner.check('ID', 'var'):
-        #     result.append(parse_var(scanner))
-        if scanner.check('ID', 'return'):
+        if scanner.check('ID', 'var'):
+            result.append(parse_var(scanner))
+        elif scanner.check('ID', 'return'):
             token = scanner.previous
             if scanner.current.kind == "NEWLINE" or scanner.current.kind == "":
                 result.append(AstNode("RETURN", token))

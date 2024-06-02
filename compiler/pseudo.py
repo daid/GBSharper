@@ -4,6 +4,7 @@ from .astnode import AstNode
 from .exception import CompileException
 from .parse.function import Function
 from .scope import Scope
+from .datatype import DataType
 
 OP_LOAD = 0
 OP_LOAD_VALUE = 1
@@ -16,16 +17,18 @@ OP_JUMP_ZERO = 7
 OP_COMPLEMENT = 8
 OP_SHIFT = 9
 OP_CALL = 10
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL"]
+OP_RETURN = 11
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN"]
 
 
 class PseudoOp:
-    def __init__(self, kind, *args):
+    def __init__(self, kind: int, *args, data_type: DataType = None):
         self.kind = kind
+        self.size = data_type.size if data_type is not None else 0
         self.args = args
 
     def __repr__(self):
-        return f"{OP_NAMES[self.kind]}: {self.args}"
+        return f"{OP_NAMES[self.kind]} ({self.size}): {self.args}"
 
 
 class PseudoState:
@@ -56,12 +59,22 @@ class PseudoState:
         r0 = -1
         if node.kind == '=':
             r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_STORE, r1, self._scope.resolve_var_name(node.params[0])))
+            self.ops.append(PseudoOp(OP_STORE, node.data_type, r1, self._scope.resolve_var_name(node.params[0]), data_type=node.data_type))
             self.free_reg(r1)
+        elif node.kind == 'VAR':
+            r1 = self.step(node.params[0])
+            self.ops.append(PseudoOp(OP_STORE, node.data_type, r1, self._scope.resolve_var_name(node)))
+            self.free_reg(r1)
+        elif node.kind == 'RETURN':
+            if node.params:
+                r1 = self.step(node.params[0])
+                self.ops.append(PseudoOp(OP_STORE, r1, "_result__"))
+                self.free_reg(r1)
+            self.ops.append(PseudoOp(OP_RETURN))
         elif node.kind in {'U-'}:
             r0 = self.step(node.params[0])
             self.ops.append(PseudoOp(OP_COMPLEMENT, r0))
-        elif node.kind in {'+', '-', '*', '/', '%'}:
+        elif node.kind in {'+', '-', '*', '/', '%', '&', '|', '^'}:
             r0 = self.step(node.params[0])
             r1 = self.step(node.params[1])
             self.ops.append(PseudoOp(OP_ARITHMETIC, node.kind, r0, r1))
@@ -78,7 +91,7 @@ class PseudoState:
             self.free_reg(r1)
         elif node.kind == 'ID':
             r0 = self.new_reg()
-            self.ops.append(PseudoOp(OP_LOAD, r0, self._scope.resolve_var_name(node)))
+            self.ops.append(PseudoOp(OP_LOAD, r0, self._scope.resolve_var_name(node), data_type=node.data_type))
         elif node.kind == 'NUM':
             r0 = self.new_reg()
             self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value))

@@ -138,6 +138,7 @@ class Tokenizer:
     TOKEN_REGEX = re.compile('|'.join('(?P<%s>%s)' % pair for pair in [
         ('NUMBER', r'\d+(\.\d*)?'),
         ('HEX', r'\$[0-9A-Fa-f]+'),
+        ('GFX', r'`[0-3]+'),
         ('ASSIGN', r':='),
         ('COMMENT', r';[^\n]*'),
         ('LABEL', r':'),
@@ -177,6 +178,9 @@ class Tokenizer:
                     value = int(value)
                 elif kind == 'HEX':
                     value = int(str(value)[1:], 16)
+                    kind = 'NUMBER'
+                elif kind == 'GFX':
+                    value = sum(((int(c) & 1) << (7 - idx)) | ((int(c) & 2) << (14 - idx)) for idx, c in enumerate(value[1:]))
                     kind = 'NUMBER'
                 elif kind == 'ID':
                     value = str(value).upper()

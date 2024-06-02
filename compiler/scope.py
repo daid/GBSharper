@@ -10,6 +10,13 @@ class Scope:
         self.vars: Dict[str, AstNode] = {}
         self.parent = parent
 
+    def resolve_var_data_type(self, node: AstNode):
+        if node.token.value in self.vars:
+            return self.vars[node.token.value].data_type
+        if self.parent:
+            return self.parent.resolve_var_data_type(node)
+        raise CompileException(node.token, f"Variable not found: {node.token.value}")
+
     def resolve_var_name(self, node: AstNode):
         if node.token.value in self.vars:
             return f"{self.prefix}_{node.token.value}"
@@ -25,7 +32,12 @@ class TopLevelScope(Scope):
     def __init__(self, prefix: str):
         super().__init__(prefix, None)
         self.funcs: Dict[str, Function] = {}
-        self.regs: Dict[str, int] = {}
+        self.regs: Dict[str, AstNode] = {}
+
+    def resolve_var_data_type(self, node: AstNode):
+        if node.token.value in self.regs:
+            return self.regs[node.token.value].data_type
+        return super().resolve_var_data_type(node)
 
     def resolve_var_name(self, node: AstNode):
         if node.token.value in self.regs:

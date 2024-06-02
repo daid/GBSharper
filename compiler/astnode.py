@@ -21,6 +21,9 @@ class AstNode:
                 print(f"{indent}{'`' if param_last else '|'}-{param}")
 
     def __repr__(self) -> str:
+        dt = ""
+        if self.data_type:
+            dt = str(self.data_type)
         if len(self.params) == 0:
-            return f"{self.kind}<{self.token.value}>"
-        return f"{self.kind}{self.params}"
+            return f"{self.kind}<{self.token.value}> {dt}"
+        return f"{self.kind}{self.params} {dt}"

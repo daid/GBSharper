@@ -34,7 +34,7 @@ class Compiler:
                 raise CompileException(reg.token, f"Duplicate reg definition: {reg.token.value}")
             if reg.params[0].kind != "NUM":
                 raise CompileException(reg.token, f"Reg address is not a constant value: {reg.token.value}")
-            self.main_scope.regs[reg.token.value] = reg.params[0].token.value
+            self.main_scope.regs[reg.token.value] = reg
         for var in module.vars:
             if var.token.value in self.main_scope.vars or var.token.value in self.main_scope.regs or var.token.value in self.consts:
                 raise CompileException(var.token, f"Duplicate variable definition: {var.token.value}")
@@ -60,33 +60,36 @@ class Compiler:
             fp = open(f"stdlib/{f}", "rt")
             asm.process(fp.read(), base_address=-2, bank=0)
             fp.close()
-        ram_code = ""
+        ram_code = "__result__:\n ds 1\n"
         init_code = "__init:\n"
         for name, reg in self.main_scope.regs.items():
-            ram_code += f"_{name} := {reg}\n"
+            ram_code += f"_{name} := {reg.params[0].token.value}\n"
         for name, var in self.main_scope.vars.items():
             ram_code += f"_{self.main_scope.prefix}_{name}:\n ds {var.data_type.size//8}\n"
             init_code += f"ld a, {var.params[0].token.value}\nld [_{self.main_scope.prefix}_{name}], a\n"
         # TODO: Figure out call tree and overlap function parameters where possible.
         for name, func in self.main_scope.funcs.items():
             for param in func.parameters:
-                ram_code += f"_local_{func.name}_{param.name}:\n ds {param.vartype.size//8}\n"
+                ram_code += f"_local_{func.name}_{param.token.value}:\n ds {param.data_type.size//8}\n"
+            for var in func.vars:
+                ram_code += f"_local_{func.name}_{var.token.value}:\n ds {var.data_type.size//8}\n"
         asm.process(ram_code, base_address=0xC000, bank=0)
         asm.process(init_code + "ret", base_address=-2, bank=1)
         for name, func in self.main_scope.funcs.items():
             scope = Scope(f"local_{name}", self.main_scope)
             for param in func.parameters:
-                scope.vars[param.name] = param.vartype
+                scope.vars[param.token.value] = param.data_type
+            for param in func.vars:
+                scope.vars[var.token.value] = var.data_type
             ps = PseudoState(scope, func)
             code = f"_function_{func.name}:\n"
             code += gen_code(ps)
-            code += "ret\n"
             if print_asm_code:
                 print(code)
             asm.process(code, base_address=-2)
         asm.link()
 
-        rom_data = bytearray(0x10000)
+        rom_data = bytearray(0x8000)
         for s in asm.getSections():
             if s.base_address >= 0x8000:
                 assert s.data.count(0) == len(s.data)
