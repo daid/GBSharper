@@ -55,3 +55,28 @@ fn f1 y z
     x = y - z
 """)
         self.assertEqual(res.x, 15)
+
+    def test_return(self):
+        res = compile_and_run("""
+var x = 1
+
+fn main
+    x = f1(4)
+
+fn f1 y > u8
+    return y + 1
+""")
+        self.assertEqual(res.x, 5)
+
+    def test_return_unused(self):
+        res = compile_and_run("""
+var x = 1
+
+fn main
+    f1(4)
+
+fn f1 y > u8
+    x = y
+    return y + 1
+""")
+        self.assertEqual(res.x, 4)

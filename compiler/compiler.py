@@ -53,7 +53,7 @@ class Compiler:
         for func in self.main_scope.funcs.values():
             func.dump()
 
-    def build(self, *, print_asm_code=False):
+    def build(self, *, print_asm_code=False, print_pseudo_code=False):
         asm = Assembler()
         asm.process("jp std_start\nds $150-3", base_address=0x0100, bank=0) # Reserve header area
         for f in os.listdir("stdlib"):
@@ -78,10 +78,13 @@ class Compiler:
         for name, func in self.main_scope.funcs.items():
             scope = Scope(f"local_{name}", self.main_scope)
             for param in func.parameters:
-                scope.vars[param.token.value] = param.data_type
+                scope.vars[param.token.value] = param
             for param in func.vars:
-                scope.vars[var.token.value] = var.data_type
+                scope.vars[var.token.value] = var
             ps = PseudoState(scope, func)
+            if print_pseudo_code:
+                for op in ps.ops:
+                    print(op)
             code = f"_function_{func.name}:\n"
             code += gen_code(ps)
             if print_asm_code:

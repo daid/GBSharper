@@ -1,7 +1,8 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from .astnode import AstNode
 from .parse.function import Function
 from .exception import CompileException
+from .datatype import DataType
 
 
 class Scope:
@@ -10,18 +11,11 @@ class Scope:
         self.vars: Dict[str, AstNode] = {}
         self.parent = parent
 
-    def resolve_var_data_type(self, node: AstNode):
+    def resolve_var(self, node: AstNode) -> Tuple[str, DataType]:
         if node.token.value in self.vars:
-            return self.vars[node.token.value].data_type
+            return f"{self.prefix}_{node.token.value}", self.vars[node.token.value].data_type
         if self.parent:
-            return self.parent.resolve_var_data_type(node)
-        raise CompileException(node.token, f"Variable not found: {node.token.value}")
-
-    def resolve_var_name(self, node: AstNode):
-        if node.token.value in self.vars:
-            return f"{self.prefix}_{node.token.value}"
-        if self.parent:
-            return self.parent.resolve_var_name(node)
+            return self.parent.resolve_var(node)
         raise CompileException(node.token, f"Variable not found: {node.token.value}")
 
     def find_function(self, node: AstNode):
@@ -34,15 +28,10 @@ class TopLevelScope(Scope):
         self.funcs: Dict[str, Function] = {}
         self.regs: Dict[str, AstNode] = {}
 
-    def resolve_var_data_type(self, node: AstNode):
+    def resolve_var(self, node: AstNode) -> Tuple[str, DataType]:
         if node.token.value in self.regs:
-            return self.regs[node.token.value].data_type
-        return super().resolve_var_data_type(node)
-
-    def resolve_var_name(self, node: AstNode):
-        if node.token.value in self.regs:
-            return node.token.value
-        return super().resolve_var_name(node)
+            return node.token.value, self.regs[node.token.value].data_type
+        return super().resolve_var(node)
 
     def find_function(self, node: AstNode):
         if node.token.value in self.funcs:

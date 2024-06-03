@@ -141,7 +141,7 @@ def op_handler(code: Code, ra: RegisterAllocator, op):
     raise RuntimeError(f"No codegen implementation for {op}")
 
 
-@handler(8, OP_JUMP)
+@handler(0, OP_JUMP)
 def op_handler(code: Code, ra: RegisterAllocator, op):
     code.add(f"jpr ._{op.args[0]}")
     return True
@@ -156,13 +156,13 @@ def op_handler(code: Code, ra: RegisterAllocator, op):
     return True
 
 
-@handler(8, OP_CALL)
+@handler(0, OP_CALL)
 def op_handler(code: Code, ra: RegisterAllocator, op):
     code.add(f"call _function_{op.args[0]}")
     return True
 
 
-@handler(8, OP_RETURN)
+@handler(0, OP_RETURN)
 def op_handler(code: Code, ra: RegisterAllocator, op):
     code.add(f"ret")
     return True

@@ -4,7 +4,7 @@ from .astnode import AstNode
 from .exception import CompileException
 from .parse.function import Function
 from .scope import Scope
-from .datatype import DataType
+from .datatype import DataType, DEFAULT_TYPE
 
 OP_LOAD = 0
 OP_LOAD_VALUE = 1
@@ -40,11 +40,11 @@ class PseudoState:
         self._func = func
         self._scope = scope
         self.block(func.block)
-        assert len(self._free_regs) == self._reg_count
+        assert len(self._free_regs) == self._reg_count, f"{self._free_regs} != {self._reg_count}"
 
     def block(self, block):
         for node in block:
-            r = self.step(node)
+            r = self.step(node, None)
             if r != -1:
                 self.free_reg(r)
 
@@ -53,52 +53,60 @@ class PseudoState:
         return self._reg_count
 
     def free_reg(self, r):
+        assert r > 0
         self._free_regs.append(r)
 
-    def step(self, node: AstNode):
+    def step(self, node: AstNode, data_type: DataType):
         r0 = -1
         if node.kind == '=':
-            r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_STORE, node.data_type, r1, self._scope.resolve_var_name(node.params[0]), data_type=node.data_type))
+            assert data_type is None
+            label, data_type = self._scope.resolve_var(node.params[0])
+            r1 = self.step(node.params[1], data_type)
+            self.ops.append(PseudoOp(OP_STORE, r1, label, data_type=data_type))
             self.free_reg(r1)
         elif node.kind == 'VAR':
-            r1 = self.step(node.params[0])
-            self.ops.append(PseudoOp(OP_STORE, node.data_type, r1, self._scope.resolve_var_name(node)))
+            assert data_type is None
+            label, data_type = self._scope.resolve_var(node)
+            r1 = self.step(node.params[0], data_type)
+            self.ops.append(PseudoOp(OP_STORE, r1, label, data_type=data_type))
             self.free_reg(r1)
         elif node.kind == 'RETURN':
             if node.params:
-                r1 = self.step(node.params[0])
-                self.ops.append(PseudoOp(OP_STORE, r1, "_result__"))
+                r1 = self.step(node.params[0], self._func.return_type)
+                self.ops.append(PseudoOp(OP_STORE, r1, "_result__", data_type=self._func.return_type))
                 self.free_reg(r1)
             self.ops.append(PseudoOp(OP_RETURN))
         elif node.kind in {'U-'}:
-            r0 = self.step(node.params[0])
-            self.ops.append(PseudoOp(OP_COMPLEMENT, r0))
+            r0 = self.step(node.params[0], data_type)
+            self.ops.append(PseudoOp(OP_COMPLEMENT, r0, data_type=data_type))
         elif node.kind in {'+', '-', '*', '/', '%', '&', '|', '^'}:
-            r0 = self.step(node.params[0])
-            r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_ARITHMETIC, node.kind, r0, r1))
+            r0 = self.step(node.params[0], data_type)
+            r1 = self.step(node.params[1], data_type)
+            self.ops.append(PseudoOp(OP_ARITHMETIC, node.kind, r0, r1, data_type=data_type))
             self.free_reg(r1)
         elif node.kind in {'<', '>', '==', '!='}:
-            r0 = self.step(node.params[0])
-            r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_LOGIC, node.token.value, r0, r1))
+            r0 = self.step(node.params[0], data_type)
+            r1 = self.step(node.params[1], data_type)
+            self.ops.append(PseudoOp(OP_LOGIC, node.token.value, r0, r1, data_type=data_type))
             self.free_reg(r1)
         elif node.kind == 'SHIFT':
-            r0 = self.step(node.params[0])
-            r1 = self.step(node.params[1])
-            self.ops.append(PseudoOp(OP_SHIFT, node.token.value, r0, r1))
+            r0 = self.step(node.params[0], data_type)
+            r1 = self.step(node.params[1], data_type)
+            self.ops.append(PseudoOp(OP_SHIFT, node.token.value, r0, r1, data_type=data_type))
             self.free_reg(r1)
         elif node.kind == 'ID':
+            label, var_data_type = self._scope.resolve_var(node)
+            if var_data_type != data_type:
+                raise CompileException(node.token, f"Wrong type {var_data_type} != {data_type}")
             r0 = self.new_reg()
-            self.ops.append(PseudoOp(OP_LOAD, r0, self._scope.resolve_var_name(node), data_type=node.data_type))
+            self.ops.append(PseudoOp(OP_LOAD, r0, label, data_type=data_type))
         elif node.kind == 'NUM':
             r0 = self.new_reg()
-            self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value))
+            self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value, data_type=data_type))
         elif node.kind == 'IF':
-            r1 = self.step(node.params[0])
+            r1 = self.step(node.params[0], DEFAULT_TYPE)
             if_label = self.next_label()
-            self.ops.append(PseudoOp(OP_JUMP_ZERO, if_label, r1))
+            self.ops.append(PseudoOp(OP_JUMP_ZERO, if_label, r1, data_type=DEFAULT_TYPE))
             self.free_reg(r1)
             self.block(node.params[1].params)
             if len(node.params) > 2:
@@ -113,8 +121,8 @@ class PseudoState:
             check_label = self.next_label()
             end_label = self.next_label()
             self.ops.append(PseudoOp(OP_LABEL, check_label))
-            r1 = self.step(node.params[0])
-            self.ops.append(PseudoOp(OP_JUMP_ZERO, end_label, r1))
+            r1 = self.step(node.params[0], DEFAULT_TYPE)
+            self.ops.append(PseudoOp(OP_JUMP_ZERO, end_label, r1, data_type=DEFAULT_TYPE))
             self.free_reg(r1)
             self.block(node.params[1:])
             self.ops.append(PseudoOp(OP_JUMP, check_label))
@@ -123,11 +131,16 @@ class PseudoState:
             func = self._scope.find_function(node.params[0])
             if len(func.parameters) != len(node.params) - 1:
                 raise CompileException(node.token, f"Wrong number of parameters to function {func.name}")
+            if data_type is not None and data_type != func.return_type:
+                raise CompileException(node.token, f"Type mismatch {data_type} != {func.return_type}")
             for param_node, param in zip(node.params[1:], func.parameters):
-                r1 = self.step(param_node)
-                self.ops.append(PseudoOp(OP_STORE, r1, f"local_{func.name}_{param.name}"))
+                r1 = self.step(param_node, param.data_type)
+                self.ops.append(PseudoOp(OP_STORE, r1, f"local_{func.name}_{param.token.value}", data_type=param.data_type))
                 self.free_reg(r1)
             self.ops.append(PseudoOp(OP_CALL, func.name))
+            if data_type:
+                r0 = self.new_reg()
+                self.ops.append(PseudoOp(OP_LOAD, r0, "_result__", data_type=data_type))
         else:
             raise CompileException(node.token, f"Do not know how to convert {node} into pseudo ops")
         return r0
