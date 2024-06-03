@@ -9,7 +9,12 @@ class Result:
 
     def __getattr__(self, item):
         addr, bank = self.__symbols[f"_GLOBAL_VAR_{item.upper()}"]
-        return self.__cpu.read(addr)
+        for k, (a, b) in self.__symbols.items():
+            if a == addr + 1:
+                return self.__cpu.read(addr)
+            if a == addr + 2:
+                return self.__cpu.read(addr) | (self.__cpu.read(addr + 1) << 8)
+        return None
 
 
 def compile_and_run(code, max_cycles=10000):

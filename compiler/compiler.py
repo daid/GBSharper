@@ -60,19 +60,27 @@ class Compiler:
             fp = open(f"stdlib/{f}", "rt")
             asm.process(fp.read(), base_address=-2, bank=0)
             fp.close()
-        ram_code = "__result__:\n ds 1\n"
+        ram_code = "__result__:\n ds 2\n"
         init_code = "__init:\n"
         for name, reg in self.main_scope.regs.items():
             ram_code += f"_{name} := {reg.params[0].token.value}\n"
         for name, var in self.main_scope.vars.items():
             ram_code += f"_{self.main_scope.prefix}_{name}:\n ds {var.data_type.size//8}\n"
-            init_code += f"ld a, {var.params[0].token.value}\nld [_{self.main_scope.prefix}_{name}], a\n"
+            if var.data_type.size == 8:
+                init_code += f"ld a, {var.params[0].token.value}\nld [_{self.main_scope.prefix}_{name}], a\n"
+            else:
+                init_code += f"ld a, {var.params[0].token.value&0xFF}\nld [_{self.main_scope.prefix}_{name}], a\n"
+                init_code += f"ld a, {(var.params[0].token.value>>8)&0xFF}\nld [_{self.main_scope.prefix}_{name}+1], a\n"
+        ram_code += "__ram_end:"
         # TODO: Figure out call tree and overlap function parameters where possible.
         for name, func in self.main_scope.funcs.items():
             for param in func.parameters:
                 ram_code += f"_local_{func.name}_{param.token.value}:\n ds {param.data_type.size//8}\n"
             for var in func.vars:
                 ram_code += f"_local_{func.name}_{var.token.value}:\n ds {var.data_type.size//8}\n"
+        if print_asm_code:
+            print(ram_code)
+            print(init_code)
         asm.process(ram_code, base_address=0xC000, bank=0)
         asm.process(init_code + "ret", base_address=-2, bank=1)
         for name, func in self.main_scope.funcs.items():
