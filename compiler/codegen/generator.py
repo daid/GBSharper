@@ -2,79 +2,10 @@ from ..pseudo import *
 from .code import Code
 from .register import RegisterAllocator
 from .handler import handler, get_handlers
-
-
-@handler(8, OP_LOAD)
-def op_handler(code: Code, ra: RegisterAllocator, op):
-    r0 = ra.alloc(op.args[0])
-    if r0 != "A":
-        r0 = ra.move_reg(r0, "A")
-    code.add(f"ld {r0}, [_{op.args[1]}]")
-    return True
-
-
-@handler(8, OP_LOAD_VALUE)
-def op_handler(code: Code, ra: RegisterAllocator, op):
-    r0 = ra.alloc(op.args[0])
-    if r0 == "A" and (op.args[1]&0xFF) == 0:
-        code.add(f"xor {r0}")
-    else:
-        code.add(f"ld {r0}, {op.args[1]&0xFF}")
-    return True
-
-
-@handler(8, OP_STORE)
-def op_handler(code: Code, ra: RegisterAllocator, op):
-    r0 = ra.get(op.args[0])
-    if r0 != "A":
-        r0 = ra.move_reg(r0, "A")
-    code.add(f"ld [_{op.args[1]}], {r0}")
-    ra.free(op.args[0])
-    return True
-
-ARITHMETIC_ASM = {
-    '+': 'add', '-': 'sub', '&': 'and', '|': 'or', '^': 'xor'
-}
-@handler(8, OP_ARITHMETIC)
-def op_handler(code: Code, ra: RegisterAllocator, op):
-    r0 = ra.get(op.args[1])
-    if ra.get(op.args[2]) == "A" and op.args[0] in {'+', '&', '|', '^'}:
-        # If the destination is not "A" but the source is, we can swap source and destination for addition
-        r1 = ra.get(op.args[2])
-        code.add(f"{ARITHMETIC_ASM[op.args[0]]} {r1}, {r0}")
-        ra.reg_replaced_by(op.args[1], op.args[2])
-        return True
-    if r0 != 'A':
-        r0 = ra.move_reg(r0, "A")
-    r1 = ra.get(op.args[2])
-    code.add(f"{ARITHMETIC_ASM[op.args[0]]} {r0}, {r1}")
-    ra.free(op.args[2])
-    return True
-
-
-@handler(8, OP_LOAD, OP_ARITHMETIC)
-def op_arithmetic_by_HL(code: Code, ra: RegisterAllocator, load, arithmetic):
-    if not ra.is_free("H", "L"):
-        return False
-    if load.args[0] != arithmetic.args[2] or arithmetic.args[0] not in {'+', '-', '&', '|', '^'}:
-        return False
-    r0 = ra.get(arithmetic.args[1])
-    if r0 != 'A':
-        r0 = ra.move_reg(r0, "A")
-    code.add(f"ld HL, _{load.args[1]}")
-    code.add(f"{ARITHMETIC_ASM[arithmetic.args[0]]} {r0}, [HL]")
-    return True
-
-
-@handler(8, OP_LOAD_VALUE, OP_ARITHMETIC)
-def op_arithmetic_constant(code: Code, ra: RegisterAllocator, load, arithmetic):
-    if load.args[0] != arithmetic.args[2] or arithmetic.args[0] not in {'+', '-', '&', '|', '^'}:
-        return False
-    r0 = ra.get(arithmetic.args[1])
-    if r0 != 'A':
-        r0 = ra.move_reg(r0, "A")
-    code.add(f"{ARITHMETIC_ASM[arithmetic.args[0]]} {r0}, {load.args[1]&0xFF}")
-    return True
+from .u8 import memory
+from .u8 import arithmetic
+from .u16 import memory
+from .u16 import arithmetic
 
 
 @handler(8, OP_LOGIC)
@@ -116,6 +47,13 @@ def op_arithmetic_constant(code: Code, ra: RegisterAllocator, load, shift):
     amount = load.args[1]
     if amount < 0:
         return False
+    if r0 == "A" and amount == 4:
+        code.add(f"swap {r0}")
+        if shift.args[0] == '>>':
+            code.add(f"and a, $0F")
+        elif shift.args[0] == '<<':
+            code.add(f"and a, $F0")
+        amount = 0
 
     if shift.args[0] == '>>':
         for n in range(amount):
@@ -174,7 +112,7 @@ def gen_code(ps: PseudoState):
     for op in ps.ops:
         if op.kind in {OP_ARITHMETIC, OP_LOGIC, OP_JUMP_ZERO}:
             ra.set_alu_result(op.args[1])
-        if op.kind in {OP_LOAD, OP_STORE}:
+        if op.kind in {OP_LOAD, OP_STORE} and op.size == 8:
             ra.set_alu_result(op.args[0])
     idx = 0
     while idx < len(ps.ops):

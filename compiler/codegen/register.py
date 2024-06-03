@@ -6,6 +6,7 @@ from .code import Code
 FLAG_ALU_RESULT = 1
 REG_TO_IDX = {"A": 7, "B": 0, "C": 1, "D": 2, "E": 3, "H": 4, "L": 5}
 ALL_REGS = "BCDEHLA"
+ALL_REGS16 = ["BC", "DE", "HL"]
 
 
 class RegisterAllocator:
@@ -16,10 +17,10 @@ class RegisterAllocator:
         self._alloc = {}
         self._reg_is = {}
 
-    def set_alu_result(self, nr):
+    def set_alu_result(self, nr: int) -> None:
         self._flags[nr] = self._flags.get(nr, 0) | FLAG_ALU_RESULT
 
-    def alloc(self, nr):
+    def alloc(self, nr: int) -> str:
         assert nr not in self._alloc
         flags = self._flags.get(nr, 0)
         allowed = {"A", "B", "C", "D", "E", "H", "L"}
@@ -37,7 +38,25 @@ class RegisterAllocator:
         self._free_regs.remove(pick)
         return pick
 
-    def is_free(self, *regs):
+    def alloc16(self, nr: int) -> str:
+        assert nr not in self._alloc
+        flags = self._flags.get(nr, 0)
+        allowed = {"BC", "DE", "HL"}
+        if flags & FLAG_ALU_RESULT:
+            allowed = {"HL"}
+        options = {opt for opt in allowed if opt[0] in self._free_regs and opt[1] in self._free_regs}
+        if not options and self._free_regs:
+            raise NotImplementedError(f"Want {allowed} but free: {self._free_regs} (flags: {flags})")
+        else:
+            pick = self._pick_best_reg16(options)
+        self._alloc[nr] = pick
+        self._reg_is[pick[0]] = nr
+        self._reg_is[pick[1]] = nr
+        self._free_regs.remove(pick[0])
+        self._free_regs.remove(pick[1])
+        return pick
+
+    def is_free(self, *regs) -> bool:
         for reg in regs:
             if reg not in self._free_regs:
                 return False
@@ -45,9 +64,16 @@ class RegisterAllocator:
 
     def free(self, nr):
         reg = self._alloc[nr]
-        self._reg_is.pop(reg)
-        self._alloc.pop(nr)
-        self._free_regs.add(reg)
+        if len(reg) == 2:
+            self._reg_is.pop(reg[0])
+            self._reg_is.pop(reg[1])
+            self._alloc.pop(nr)
+            self._free_regs.add(reg[0])
+            self._free_regs.add(reg[1])
+        else:
+            self._reg_is.pop(reg)
+            self._alloc.pop(nr)
+            self._free_regs.add(reg)
 
     def get(self, nr):
         return self._alloc[nr]
@@ -75,6 +101,12 @@ class RegisterAllocator:
 
     def _pick_best_reg(self, options: Set[str]):
         for reg in ALL_REGS:
+            if reg in options:
+                return reg
+        raise RuntimeError("Picking best reg from empty set?")
+
+    def _pick_best_reg16(self, options: Set[str]):
+        for reg in ALL_REGS16:
             if reg in options:
                 return reg
         raise RuntimeError("Picking best reg from empty set?")

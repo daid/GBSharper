@@ -19,4 +19,5 @@ class DataType:
 DEFAULT_TYPE = DataType(DataType.INT, 8)
 BASE_TYPES = {
     "u8": DEFAULT_TYPE,
+    "u16": DataType(DataType.INT, 16),
 }
