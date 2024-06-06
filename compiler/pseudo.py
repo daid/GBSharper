@@ -162,6 +162,8 @@ class PseudoState:
     def discover_type(self, node: AstNode):
         if node.data_type:
             return node.data_type
+        if node.kind == "CAST":
+            return node.params[1].data_type
         if node.kind == "ID":
             return self._scope.resolve_var(node)[1]
         for p in node.params:

@@ -9,5 +9,5 @@ def parse_datatype(scanner: Scanner):
         raise CompileException(scanner.current, f"Unexpected: {scanner.current.value}")
     datatype = BASE_TYPES[scanner.previous.value]
     while scanner.check('*'):
-        print("OHHO!")
+        datatype = datatype.get_pointer()
     return datatype
