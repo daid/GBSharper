@@ -2,6 +2,7 @@ from typing import Dict, Optional, Callable, Union, Tuple, List
 from ..scanner import Scanner
 from ..astnode import AstNode
 from ..exception import CompileException
+from .datatype import parse_datatype
 
 
 PREC_NONE = 0
@@ -78,6 +79,11 @@ def binary(scanner: Scanner) -> Tuple[str, AstNode]:
     return t.kind, res
 
 
+def binary_cast(scanner: Scanner) -> Tuple[str, AstNode]:
+    t = scanner.previous
+    return "CAST", AstNode(t.kind, t, data_type=parse_datatype(scanner))
+
+
 def parse_precedence(scanner: Scanner, precedence: int) -> AstNode:
     if scanner.current.kind not in rules:
         raise CompileException(scanner.current, f"Unexpected {scanner.current.kind}")
@@ -123,6 +129,7 @@ rules['*'] = Rule(None, binary, PREC_FACTOR)
 rules['%'] = Rule(None, binary, PREC_FACTOR)
 rules['SHIFT'] = Rule(None, binary, PREC_SHIFT)
 rules['=='] = Rule(None, binary, PREC_EQUALITY)
+rules['AS'] = Rule(None, binary_cast, PREC_COMPARISON)
 rules['<'] = Rule(None, binary, PREC_COMPARISON)
 rules['>'] = Rule(None, binary, PREC_COMPARISON)
 rules['<='] = Rule(None, binary, PREC_COMPARISON)

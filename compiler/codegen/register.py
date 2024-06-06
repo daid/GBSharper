@@ -98,6 +98,16 @@ class RegisterAllocator:
         self._alloc[nr] = to_reg
         self._reg_is[to_reg] = nr
         self._free_regs.remove(to_reg)
+    
+    def push_in_use(self):
+        for reg in ["BC", "DE", "HL", "AF"]:
+            if reg[0] not in self._free_regs or (reg[1] not in self._free_regs and reg[1] != "F"):
+                self._code.add(f"push {reg}")
+
+    def pop_in_use(self):
+        for reg in ["AF", "HL", "DE", "BC"]:
+            if reg[0] not in self._free_regs or (reg[1] not in self._free_regs and reg[1] != "F"):
+                self._code.add(f"pop {reg}")
 
     def _pick_best_reg(self, options: Set[str]):
         for reg in ALL_REGS:

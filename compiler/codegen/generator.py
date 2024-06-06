@@ -96,7 +96,9 @@ def op_handler(code: Code, ra: RegisterAllocator, op):
 
 @handler(0, OP_CALL)
 def op_handler(code: Code, ra: RegisterAllocator, op):
+    ra.push_in_use()
     code.add(f"call _function_{op.args[0]}")
+    ra.pop_in_use()
     return True
 
 
@@ -104,6 +106,29 @@ def op_handler(code: Code, ra: RegisterAllocator, op):
 def op_handler(code: Code, ra: RegisterAllocator, op):
     code.add(f"ret")
     return True
+
+
+@handler(8, OP_CAST)
+def op_handler_cast(code: Code, ra: RegisterAllocator, op):
+    if op.args[1] == 16:
+        r0 = ra.get(op.args[0])
+        ra.free(op.args[0])
+        r1 = ra.alloc16(op.args[0])
+        code.add(f"ld {r1[0]}, 0")
+        code.add(f"ld {r1[1]}, {r0}")
+        return True
+    return False
+
+
+@handler(16, OP_CAST)
+def op_handler_cast(code: Code, ra: RegisterAllocator, op):
+    if op.args[1] == 8:
+        r0 = ra.get(op.args[0])
+        ra.free(op.args[0])
+        r1 = ra.alloc(op.args[0])
+        code.add(f"ld {r1}, {r0[1]}")
+        return True
+    return False
 
 
 def gen_code(ps: PseudoState):

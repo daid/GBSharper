@@ -5,8 +5,9 @@ var d = 2
 
 fn main
     a = a - b - c - d
-    test(1, 2)
+    a = test(1, 2)
 
-fn test x y
+fn test x y > u8
     d = x + -y
     c = x + (2 << 3)
+    return 5

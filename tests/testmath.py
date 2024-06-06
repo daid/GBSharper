@@ -51,3 +51,13 @@ fn main
     x = x + y
 """)
         self.assertEqual(res.x, 0x708)
+
+    def test_sub16(self):
+        res = compile_and_run("""
+var x: u16 = 0x605
+var y: u16 = 0x103
+
+fn main
+    x = x - y
+""")
+        self.assertEqual(res.x, 0x502)

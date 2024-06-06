@@ -23,7 +23,7 @@ class AstNode:
     def __repr__(self) -> str:
         dt = ""
         if self.data_type:
-            dt = str(self.data_type)
+            dt = f" {self.data_type}"
         if len(self.params) == 0:
-            return f"{self.kind}<{self.token.value}> {dt}"
-        return f"{self.kind}{self.params} {dt}"
+            return f"{self.kind}<{self.token.value}>{dt}"
+        return f"{self.kind}{self.params}{dt}"

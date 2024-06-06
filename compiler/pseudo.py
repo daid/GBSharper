@@ -18,7 +18,8 @@ OP_COMPLEMENT = 8
 OP_SHIFT = 9
 OP_CALL = 10
 OP_RETURN = 11
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN"]
+OP_CAST = 12
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN", "CAST"]
 
 
 class PseudoOp:
@@ -103,6 +104,12 @@ class PseudoState:
         elif node.kind == 'NUM':
             r0 = self.new_reg()
             self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value, data_type=data_type))
+        elif node.kind == 'CAST':
+            if node.params[1].data_type != data_type:
+                raise CompileException(node.token, f"Wrong type {var_data_type} != {data_type}")
+            source_type = self.discover_type(node.params[0])
+            r0 = self.step(node.params[0], source_type)
+            self.ops.append(PseudoOp(OP_CAST, r0, data_type.size, data_type=source_type))
         elif node.kind == 'IF':
             r1 = self.step(node.params[0], DEFAULT_TYPE)
             if_label = self.next_label()
@@ -144,6 +151,17 @@ class PseudoState:
         else:
             raise CompileException(node.token, f"Do not know how to convert {node} into pseudo ops")
         return r0
+
+    def discover_type(self, node: AstNode):
+        if node.data_type:
+            return node.data_type
+        if node.kind == "ID":
+            return self._scope.resolve_var(node)[1]
+        for p in node.params:
+            res = self.discover_type(p)
+            if res:
+                return res
+        return None
 
     def next_label(self):
         self._label_nr += 1
