@@ -101,70 +101,29 @@ fn main
         _OAMRAM5 = _OAMRAM5 + ballMomentumX
         _OAMRAM4 = _OAMRAM4 + ballMomentumY
 
-    ; ANCHOR: updated-bounce
-    ;BounceOnTop:
-    ;    ; Remember to offset the OAM position!
-    ;    ; (8, 16) in OAM coordinates is (0, 0) on the screen.
-    ;    ld a, [_OAMRAM + 4]
-    ;    sub a, 16 + 1
-    ;    ld c, a
-    ;    ld a, [_OAMRAM + 5]
-    ;    sub a, 8
-    ;    ld b, a
-    ;    call GetTileByPixel ; Returns tile address in hl
-    ;    ld a, [hl]
-    ;    call IsWallTile
-    ;    jp nz, BounceOnRight
+        var tile_addr: u16 = GetTileByPixel(_OAMRAM4 - 17, _OAMRAM5 - 8)
+        var tile = *(tile_addr as u16*)
+        if isWallTile(tile)
     ;    call CheckAndHandleBrick
-    ;    ld a, 1
-    ;    ld [wBallMomentumY], a
+            ballMomentumY = 1
     
-    ;BounceOnRight:
-    ;    ld a, [_OAMRAM + 4]
-    ;    sub a, 16
-    ;    ld c, a
-    ;    ld a, [_OAMRAM + 5]
-    ;    sub a, 8 - 1
-    ;    ld b, a
-    ;    call GetTileByPixel
-    ;    ld a, [hl]
-    ;    call IsWallTile
-    ;    jp nz, BounceOnLeft
+        tile_addr = GetTileByPixel(_OAMRAM4 - 16, _OAMRAM5 - 7)
+        tile = *(tile_addr as u16*)
+        if isWallTile(tile)
     ;    call CheckAndHandleBrick
-    ;    ld a, -1
-    ;    ld [wBallMomentumX], a
-    ;
-    ;BounceOnLeft:
-    ;    ld a, [_OAMRAM + 4]
-    ;    sub a, 16
-    ;    ld c, a
-    ;    ld a, [_OAMRAM + 5]
-    ;    sub a, 8 + 1
-    ;    ld b, a
-    ;    call GetTileByPixel
-    ;    ld a, [hl]
-    ;    call IsWallTile
-    ;    jp nz, BounceOnBottom
-    ;    call CheckAndHandleBrick
-    ;    ld a, 1
-    ;    ld [wBallMomentumX], a
+            ballMomentumX = -1
 
-    ;BounceOnBottom:
-    ;    ld a, [_OAMRAM + 4]
-    ;    sub a, 16 - 1
-    ;    ld c, a
-    ;    ld a, [_OAMRAM + 5]
-    ;    sub a, 8
-    ;    ld b, a
-    ;    call GetTileByPixel
-    ;    ld a, [hl]
-    ;    call IsWallTile
-    ;    jp nz, BounceDone
+        tile_addr = GetTileByPixel(_OAMRAM4 - 16, _OAMRAM5 - 9)
+        tile = *(tile_addr as u16*)
+        if isWallTile(tile)
     ;    call CheckAndHandleBrick
-    ;    ld a, -1
-    ;    ld [wBallMomentumY], a
-    ;BounceDone:
-    ; ANCHOR_END: updated-bounce
+            ballMomentumX = 1
+
+        tile_addr = GetTileByPixel(_OAMRAM4 - 15, _OAMRAM5 - 8)
+        tile = *(tile_addr as u16*)
+        if isWallTile(tile)
+    ;    call CheckAndHandleBrick
+            ballMomentumY = -1
 
         ; First, check if the ball is low enough to bounce off the paddle.
         if _OAMRAM0 == _OAMRAM4
@@ -183,35 +142,18 @@ fn main
             if _OAMRAM1 != 105
                 _OAMRAM1 = _OAMRAM1 + 1
 
+
 ;; Convert a pixel position to a tilemap address
 ;; hl = $9800 + X + Y * 32
 ;; @param b: X
 ;; @param c: Y
 ;; @return hl: tile address
-;GetTileByPixel:
-;    ; First, we need to divide by 8 to convert a pixel position to a tile position.
-;    ; After this we want to multiply the Y position by 32.
-;    ; These operations effectively cancel out so we only need to mask the Y value.
-;    ld a, c
-;    and a, %11111000
-;    ld l, a
-;    ld h, 0
-;    ; Now we have the position * 8 in hl
-;    add hl, hl ; position * 16
-;    add hl, hl ; position * 32
-;    ; Just add the X position and offset to the tilemap, and we're done.
-;    ld a, b
-;    srl a ; a / 2
-;    srl a ; a / 4
-;    srl a ; a / 8
-;    add a, l
-;    ld l, a
-;    adc a, h
-;    sub a, l
-;    ld h, a
-;    ld bc, $9800
-;    add hl, bc
-;    ret
+fn GetTileByPixel x y > u16
+    var addr: u16 = ((y & 0b11111000) as u16) * 4
+    addr = ((x >> 3) as u16) + addr
+    addr = addr + 0x9800
+    return addr
+
 
 ;; @param a: tile ID
 ;; @return z: set if a is a wall.

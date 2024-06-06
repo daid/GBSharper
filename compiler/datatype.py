@@ -10,6 +10,11 @@ class DataType:
         self.size = size
         self.my_pointer = None
     
+    def get_pointer(self):
+        if self.my_pointer is None:
+            self.my_pointer = DataType(DataType.POINTER, 16)
+        return self.my_pointer
+    
     def __repr__(self):
         if self.type == self.INT:
             return f"u{self.size}"

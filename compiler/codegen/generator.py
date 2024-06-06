@@ -128,7 +128,18 @@ def op_handler_cast(code: Code, ra: RegisterAllocator, op):
         r1 = ra.alloc(op.args[0])
         code.add(f"ld {r1}, {r0[1]}")
         return True
+    if op.args[1] == 16:
+        return True
     return False
+
+
+@handler(8, OP_DEREF)
+def op_handler_cast(code: Code, ra: RegisterAllocator, op):
+    r0 = ra.get(op.args[1])
+    r1 = ra.alloc(op.args[0])
+    code.add(f"ld {r1}, [{r0}]")
+    ra.free(op.args[1])
+    return True
 
 
 def gen_code(ps: PseudoState):

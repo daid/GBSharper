@@ -7,4 +7,7 @@ def parse_datatype(scanner: Scanner):
     scanner.consume('ID')
     if scanner.previous.value not in BASE_TYPES:
         raise CompileException(scanner.current, f"Unexpected: {scanner.current.value}")
-    return BASE_TYPES[scanner.previous.value]
+    datatype = BASE_TYPES[scanner.previous.value]
+    while scanner.check('*'):
+        print("OHHO!")
+    return datatype

@@ -19,7 +19,8 @@ OP_SHIFT = 9
 OP_CALL = 10
 OP_RETURN = 11
 OP_CAST = 12
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN", "CAST"]
+OP_DEREF = 13
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN", "CAST", "DEREF"]
 
 
 class PseudoOp:
@@ -106,10 +107,16 @@ class PseudoState:
             self.ops.append(PseudoOp(OP_LOAD_VALUE, r0, node.token.value, data_type=data_type))
         elif node.kind == 'CAST':
             if node.params[1].data_type != data_type:
-                raise CompileException(node.token, f"Wrong type {var_data_type} != {data_type}")
+                raise CompileException(node.token, f"Wrong type {node.params[1].data_type} != {data_type}")
             source_type = self.discover_type(node.params[0])
             r0 = self.step(node.params[0], source_type)
             self.ops.append(PseudoOp(OP_CAST, r0, data_type.size, data_type=source_type))
+        elif node.kind in {'U*'}:
+            source_type = self.discover_type(node.params[0])
+            r1 = self.step(node.params[0], source_type)
+            r0 = self.new_reg()
+            self.ops.append(PseudoOp(OP_DEREF, r0, r1, data_type=data_type))
+            self.free_reg(r1)
         elif node.kind == 'IF':
             r1 = self.step(node.params[0], DEFAULT_TYPE)
             if_label = self.next_label()

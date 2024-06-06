@@ -87,7 +87,7 @@ class Compiler:
             scope = Scope(f"local_{name}", self.main_scope)
             for param in func.parameters:
                 scope.vars[param.token.value] = param
-            for param in func.vars:
+            for var in func.vars:
                 scope.vars[var.token.value] = var
             ps = PseudoState(scope, func)
             if print_pseudo_code:
