@@ -101,7 +101,7 @@ fn main
         _OAMRAM5 = _OAMRAM5 + ballMomentumX
         _OAMRAM4 = _OAMRAM4 + ballMomentumY
 
-        var tile_addr: u16 = GetTileByPixel(_OAMRAM4 - 17, _OAMRAM5 - 8)
+        var tile_addr: u16 = GetTileByPixel(_OAMRAM5 - 8, _OAMRAM4 - 17)
         var tile = *(tile_addr as u16*)
         if isWallTile(tile)
     ;    call CheckAndHandleBrick
@@ -165,23 +165,18 @@ fn isWallTile tile > u8
 ;; ANCHOR: check-for-brick
 ;; Checks if a brick was collided with and breaks it if possible.
 ;; @param hl: address of tile.
-;CheckAndHandleBrick:
-;    ld a, [hl]
-;    cp a, BRICK_LEFT
-;    jr nz, CheckAndHandleBrickRight
-;    ; Break a brick from the left side.
-;    ld [hl], BLANK_TILE
-;    inc hl
-;    ld [hl], BLANK_TILE
-;CheckAndHandleBrickRight:
-;    cp a, BRICK_RIGHT
-;    ret nz
-;    ; Break a brick from the right side.
-;    ld [hl], BLANK_TILE
-;    dec hl
-;    ld [hl], BLANK_TILE
-;    ret
-;; ANCHOR_END: check-for-brick
+fn CheckAndHandleBrick addr: u8*
+    var tile = *addr
+    if tile == BRICK_LEFT
+        *addr = BLANK_TILE
+        addr = addr + 1
+        *addr = BLANK_TILE
+        return
+    if tile == BRICK_RIGHT
+        *addr = BLANK_TILE
+        addr = addr - 1
+        *addr = BLANK_TILE
+        return
 
 fn input
     rP1 = 0x10

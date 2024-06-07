@@ -29,7 +29,7 @@ class Compiler:
                 raise CompileException(const.token, f"Const initialization is not a constant value: {const.token.value}")
             self.consts[const.token.value] = const.params[0].token.value
         for reg in module.regs:
-            constant_collapse(reg.params[0])
+            constant_collapse(reg.params[0], self.consts)
             if reg.token.value in self.main_scope.regs or reg.token.value in self.consts:
                 raise CompileException(reg.token, f"Duplicate reg definition: {reg.token.value}")
             if reg.params[0].kind != "NUM":
@@ -38,7 +38,7 @@ class Compiler:
         for var in module.vars:
             if var.token.value in self.main_scope.vars or var.token.value in self.main_scope.regs or var.token.value in self.consts:
                 raise CompileException(var.token, f"Duplicate variable definition: {var.token.value}")
-            constant_collapse(var.params[0])
+            constant_collapse(var.params[0], self.consts)
             if var.params[0].kind != "NUM":
                 raise CompileException(var.token, f"Variable initialization is not a constant value: {var.token.value}")
             self.main_scope.vars[var.token.value] = var
@@ -46,7 +46,7 @@ class Compiler:
             if func.token.value in self.main_scope.funcs:
                 raise CompileException(func.token, f"Duplicate function definition: {func.name}")
             for block in func.block:
-                constant_collapse(block)
+                constant_collapse(block, self.consts)
             self.main_scope.funcs[func.token.value] = func
 
     def dump_ast(self):

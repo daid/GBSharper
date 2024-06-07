@@ -34,3 +34,17 @@ fn main
     res = *(ptr as u8*)
 """)
         self.assertEqual(res.res, 0x2)
+
+    def test_pointer2(self):
+        res = compile_and_run("""
+reg test = 0xFF80
+var res = 1
+                              
+fn main
+    test = 2
+    var tmp: u16 = 0xFF80
+    var ptr: u8* = tmp as u8*
+    *ptr = 5
+    res = test
+""")
+        self.assertEqual(res.res, 0x5)

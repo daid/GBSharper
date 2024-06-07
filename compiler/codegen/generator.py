@@ -134,10 +134,21 @@ def op_handler_cast(code: Code, ra: RegisterAllocator, op):
 
 
 @handler(8, OP_DEREF)
-def op_handler_cast(code: Code, ra: RegisterAllocator, op):
+def op_handler_deref(code: Code, ra: RegisterAllocator, op):
     r0 = ra.get(op.args[1])
     r1 = ra.alloc(op.args[0])
     code.add(f"ld {r1}, [{r0}]")
+    ra.free(op.args[1])
+    return True
+
+
+@handler(8, OP_STORE_REF)
+def op_handler_store_ref(code: Code, ra: RegisterAllocator, op):
+    r0 = ra.get(op.args[1])
+    r1 = ra.get(op.args[0])
+    if r1 != "A":
+        r1 = ra.move_reg(r1, "A")
+    code.add(f"ld [{r0}], {r1}")
     ra.free(op.args[1])
     return True
 

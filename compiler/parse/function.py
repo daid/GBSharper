@@ -40,9 +40,10 @@ def parse_function(scanner: Scanner):
     function = Function(scanner.previous)
     while scanner.check("ID"):
         data_type = DEFAULT_TYPE
+        token = scanner.previous
         if scanner.check(':', ':'):
             data_type = parse_datatype(scanner)
-        function.parameters.append(AstNode("PARAM", scanner.previous, data_type=data_type))
+        function.parameters.append(AstNode("PARAM", token, data_type=data_type))
     if scanner.check(">"):
         function.return_type = parse_datatype(scanner)
     function.set_block(parse_block(scanner))

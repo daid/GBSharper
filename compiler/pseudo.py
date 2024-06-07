@@ -20,7 +20,8 @@ OP_CALL = 10
 OP_RETURN = 11
 OP_CAST = 12
 OP_DEREF = 13
-OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN", "CAST", "DEREF"]
+OP_STORE_REF = 14
+OP_NAMES = ["LOAD", "LOADV", "STORE", "ARITHETIC", "LOGIC", "LABEL", "JUMP", "JUMP_ZERO", "COMPLEMENT", "SHIFT", "CALL", "RETURN", "CAST", "DEREF", "STORE_REF"]
 
 
 class PseudoOp:
@@ -62,10 +63,19 @@ class PseudoState:
         r0 = -1
         if node.kind == '=':
             assert data_type is None
-            label, data_type = self._scope.resolve_var(node.params[0])
-            r1 = self.step(node.params[1], data_type)
-            self.ops.append(PseudoOp(OP_STORE, r1, label, data_type=data_type))
-            self.free_reg(r1)
+            if node.params[0].kind == "U*":
+                label, data_type = self._scope.resolve_var(node.params[0].params[0])
+                r1 = self.step(node.params[1], data_type.target)
+                r2 = self.new_reg()
+                self.ops.append(PseudoOp(OP_LOAD, r2, label, data_type=data_type))
+                self.ops.append(PseudoOp(OP_STORE_REF, r1, r2, data_type=data_type.target))
+                self.free_reg(r1)
+                self.free_reg(r2)
+            else:
+                label, data_type = self._scope.resolve_var(node.params[0])
+                r1 = self.step(node.params[1], data_type)
+                self.ops.append(PseudoOp(OP_STORE, r1, label, data_type=data_type))
+                self.free_reg(r1)
         elif node.kind == 'VAR':
             assert data_type is None
             label, data_type = self._scope.resolve_var(node)

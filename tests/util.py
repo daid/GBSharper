@@ -20,6 +20,7 @@ class Result:
 def compile_and_run(code, max_cycles=10000):
     c = Compiler()
     c.add_module("code", code)
+    c.dump_ast()
     rom, symbols = c.build(print_asm_code=True, print_pseudo_code=True)
     cpu = MinimalCPU(rom)
     cycles = 0
